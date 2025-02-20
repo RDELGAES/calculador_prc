@@ -4,6 +4,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import requests
+import math
 
 # Configuração inicial da página (deve ser a primeira instrução)
 st.set_page_config(page_title="Calculadora PRC", layout="centered")
@@ -151,6 +152,20 @@ def format_currency(value, currency, lang):
     formatted = format_number(value, lang)
     return f"{currency} {formatted}"
 
+def format_rate(value, lang):
+    # Exibe a taxa com 4 dígitos decimais sem arredondamento.
+    formatted = f"{value:.4f}"
+    if lang == "Português":
+        formatted = formatted.replace(".", ",")
+    return formatted
+
+# ===========================================
+# Função para truncar um número sem arredondar
+# ===========================================
+def truncate(f, n=4):
+    factor = 10 ** n
+    return math.floor(f * factor) / factor
+
 # ===========================================
 # Funções de Cálculo
 # ===========================================
@@ -183,6 +198,8 @@ def fetch_usd_ptax():
         response = requests.get("https://economia.awesomeapi.com.br/json/last/USD-BRL")
         data = response.json()
         rate = float(data["USDBRL"]["bid"])
+        # Trunca para 4 dígitos decimais sem arredondar
+        rate = truncate(rate, 4)
         return rate
     except Exception:
         st.error(current_texts["error_cotacao"])
@@ -231,11 +248,11 @@ auto_cotacao = st.checkbox(current_texts["auto_cotacao"], value=True)
 if auto_cotacao:
     cotacao = fetch_usd_ptax()
     if cotacao:
-        st.success(f"{format_number(cotacao, lang)} BRL")
+        st.success(f"{format_rate(cotacao, lang)} BRL")
     else:
-        cotacao = st.number_input(current_texts["dolar_label"], value=5.0, step=0.01)
+        cotacao = st.number_input(current_texts["dolar_label"], value=5.0, step=0.0001)
 else:
-    cotacao = st.number_input(current_texts["dolar_label"], value=5.0, step=0.01)
+    cotacao = st.number_input(current_texts["dolar_label"], value=5.0, step=0.0001)
 
 # ====== Dados da Remessa ======
 st.subheader(current_texts["remessa"])
@@ -308,7 +325,7 @@ if comparar:
         st.metric(f"{current_texts['total']} (USD)", format_currency(total_np, "USD", lang))
         st.metric(f"{current_texts['total']} (BRL)", format_currency(total_np_brl, "R$", lang))
     
-    saving_per_shipment = total_np - total  # RTS - PRC, para destacar economia com PRC
+    saving_per_shipment = total_np - total  # RTS - PRC para destacar economia com PRC
     saving_annual_usd = saving_per_shipment * volume_anual
     saving_annual_brl = saving_annual_usd * cotacao
     
@@ -347,4 +364,3 @@ st.download_button(
 )
 
 st.write("Pronto! Se precisar de mais ajustes, é só avisar.")
-
